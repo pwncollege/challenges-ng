@@ -35,7 +35,7 @@ let
     // {
       process = defaultConfig.process // {
         args = [ "${pkgs.lib.getExe entrypoint}" ];
-        # terminal = false;
+        terminal = false;
         capabilities =
           let
             additional_capabilities = [
