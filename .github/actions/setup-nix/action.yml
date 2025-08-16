@@ -1,0 +1,17 @@
+name: Setup Nix
+runs:
+  using: composite
+  steps:
+    - name: Install Nix (daemon, flakes)
+      uses: cachix/install-nix-action@v31.5.2
+      with:
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+
+    - name: Setup Nix
+      shell: bash
+      run: sudo ln -sf /nix/var/nix/profiles/default/bin/nix /usr/local/bin/nix
+
+    - name: Show Nix version
+      shell: bash
+      run: nix --version
