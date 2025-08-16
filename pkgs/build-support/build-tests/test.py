@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, Iterable, List
+
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -17,7 +17,54 @@ from rich.table import Table
 console = Console()
 
 
-def run_one(runtime: str, test_program: str) -> Dict[str, Any]:
+def only_messages(text):
+    messages = []
+    for line in text.splitlines():
+        line = line.rstrip()
+        if not line:
+            messages.append("")
+            continue
+
+        # JSON log lines: {"time":..., "level":..., "msg": "..."}
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, dict):
+                    if isinstance(obj.get("msg"), str):
+                        messages.append(obj["msg"])
+                        continue
+                    if isinstance(obj.get("message"), str):
+                        messages.append(obj["message"])
+                        continue
+            except json.JSONDecodeError:
+                pass
+
+        # logfmt style: time=... level=... msg="..."
+        match = re.search(r'msg=(?:"([^"]*)"|\'([^\']*)\'|([^\s]+))', line)
+        if match:
+            value = next((g for g in match.groups() if g is not None), "")
+            messages.append(value)
+            continue
+
+        # Common prefixes: timestamp + level, or [LEVEL], or LEVEL: ...
+        patterns = [
+            r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[\.,]\d+)?\s+-\s+[A-Z]+\s+-\s+',
+            r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[\.,]\d+)?\s+',
+            r'^\[[A-Z]+\]\s+',
+            r'^(DEBUG|INFO|WARN|WARNING|ERROR|CRITICAL)\s*[:\-]\s+',
+        ]
+        stripped = line
+        for pattern in patterns:
+            candidate = re.sub(pattern, '', stripped)
+            if candidate != stripped:
+                stripped = candidate
+                break
+        messages.append(stripped)
+
+    return "\n".join(messages)
+
+
+def run_one(runtime, test_program):
     start = time.perf_counter()
     flag = "FLAG{" + os.urandom(16).hex() + "}"
     try:
@@ -44,11 +91,12 @@ def run_one(runtime: str, test_program: str) -> Dict[str, Any]:
         "duration": time.perf_counter() - start,
         "flag": flag in output,
         "output": output,
+        "returncode": proc.returncode,
     }
 
 
-def iter_tests(cfg: Dict[str, Any]) -> Iterable[tuple[str, str, str]]:
-    stack: List[tuple[str, Dict[str, Any]]] = [("", cfg)]
+def iter_tests(cfg):
+    stack = [("", cfg)]
     while stack:
         prefix, node = stack.pop()
         if "runtime" in node:  # leaf
@@ -60,7 +108,7 @@ def iter_tests(cfg: Dict[str, Any]) -> Iterable[tuple[str, str, str]]:
                 stack.append((f"{prefix}{key}.", child))
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(description="Run challenge tests")
     parser.add_argument("--config", "-c", default="test-config.json", help="Path to test-config JSON")
     parser.add_argument("--flag", default=os.environ.get("FLAG", "FLAG"), help="Flag string to detect in output")
@@ -89,6 +137,7 @@ def main() -> None:
         console=console,
     ) as progress:
         task = progress.add_task("Running tests", total=len(tests))
+        results = []
         with ThreadPoolExecutor(max_workers=args.jobs) as pool:
             futures = {
                 pool.submit(run_one, runtime, test_program): (label, test_program)
@@ -123,6 +172,13 @@ def main() -> None:
 
                 progress.advance(task)
 
+                # Capture for detailed reporting after the table
+                results.append({
+                    "challenge": challenge_label,
+                    "test": test_name,
+                    **result,
+                })
+
     console.print(table)
     console.rule()
 
@@ -136,6 +192,19 @@ def main() -> None:
         console.print(f"[bold green]🚩 Flag detected in {summary['flag']} outputs[/]")
     else:
         console.print("[bold red]🚩 Flag not detected in any output[/]")
+
+    # When tests fail or error, show their captured output to aid debugging
+    failing_outputs = [result for result in results if result.get("status") in ("fail", "error")]
+    if failing_outputs:
+        console.rule("[bold red]Failing Test Output[/]", style="red")
+        for result in failing_outputs:
+            console.rule(f"[bold]{result['challenge']} :: {result['test']}[/]", style="red")
+            output_text = result.get("output", "").rstrip()
+            if output_text:
+                console.print(only_messages(output_text))
+            else:
+                console.print("[dim]<no output captured>[/]")
+            console.rule("", style="red")
 
     if summary["fail"] or summary["error"] or summary["flag"] == 0:
         sys.exit(1)

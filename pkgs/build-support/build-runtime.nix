@@ -30,8 +30,13 @@ pkgs.writeShellApplication {
       additionalProcessArgs="[]"
     fi
 
-    jq --argjson additionalProcessArgs "$additionalProcessArgs" \
-      '.process.args += $ARGS.named.additionalProcessArgs' \
+    terminal=$([ -t 1 ] && echo true || echo false)
+
+    jq \
+      --argjson additionalProcessArgs "$additionalProcessArgs" \
+      --argjson terminal "$terminal" \
+      '.process.args += $ARGS.named.additionalProcessArgs |
+       .process.terminal = $ARGS.named.terminal' \
       ${filesystem}/config.json > "$bundle/config.json"
 
     mkdir -p "$bundle/rootfs"
