@@ -9,14 +9,21 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-nix
 
       - name: Check Nix formatting
         run: nix fmt -- --ci
 
   tests:
+    needs: [format]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-nix
 
       - name: Run challenge tests as root

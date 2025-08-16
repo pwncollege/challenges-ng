@@ -1,11 +1,7 @@
 name: Setup Nix
-description: Checkout repo and install Nix with flakes
 runs:
   using: composite
   steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
     - name: Install Nix (daemon, flakes)
       uses: cachix/install-nix-action@v31.5.2
       with:
@@ -19,4 +15,3 @@ runs:
     - name: Show Nix version
       shell: bash
       run: nix --version
-
