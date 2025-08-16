@@ -18,7 +18,6 @@ jobs:
         run: nix fmt -- --ci
 
   tests:
-    needs: [format]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
