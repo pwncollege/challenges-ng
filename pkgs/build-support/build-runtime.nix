@@ -30,7 +30,7 @@ pkgs.writeShellApplication {
       additionalProcessArgs="[]"
     fi
 
-    terminal=$([ -t 1 ] && echo true || echo false)
+    [ -t 1 ] && terminal=true || terminal=false
 
     jq \
       --argjson additionalProcessArgs "$additionalProcessArgs" \
