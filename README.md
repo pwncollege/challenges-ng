@@ -30,3 +30,13 @@ Alternatively, we can run a specific challenge's tests:
 ```bash
 sudo nix run '.#challenges.tests.example.hello-shell'
 ```
+
+## Development
+
+### Formatting
+
+Use `nix fmt` to format Nix files in the repository.
+You can optionally set up a Git hook to automatically format files before committing:
+```bash
+git config --local core.hooksPath .githooks
+```

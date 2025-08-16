@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ensure we're at repo root
+cd "$(git rev-parse --show-toplevel)"
+
+if ! command -v nix >/dev/null 2>&1; then
+  echo "[hook] nix not found. Please install Nix or run 'nix fmt' manually." >&2
+  exit 1
+fi
+
+echo "[hook] Running nix fmt..."
+nix fmt >/dev/null
+
+# If formatting changed files, ask user to stage and commit again
+if ! git diff --quiet; then
+  echo "[hook] Formatting changed files. Please review, stage, and commit again:" >&2
+  git status --porcelain | sed -n 's/^\( M\|MM\|AM\|A \) //p' || true
+  exit 1
+fi
+
+echo "[hook] Formatting OK."
