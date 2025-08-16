@@ -12,7 +12,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
 
       - name: Check Nix formatting
         run: nix fmt -- --ci
@@ -23,7 +24,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
 
       - name: Run challenge tests as root
         run: |
